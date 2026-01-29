@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Manga Reader</title>
+    <style>
+      :root {
+        --bg: #1e1f21;
+        --card: #252628;
+        --muted: #a8a8a8;
+        --accent: #3aa3ff;
+        --thumb-w: 160px;
+        --thumb-h: 240px;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: #fff;
+      }
+
+      /* Header */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 14px;
+        background: #1e1f21;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+      }
+
+      .brand {
+        font-weight: 700;
+        font-size: 20px;
+      }
+      .search-wrap {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+      }
+      .search {
+        width: 40%;
+        max-width: 420px;
+        min-width: 220px;
+        display: flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 4px 8px; /* 🔽 lebih pendek */
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+      }
+      .search input {
+        flex: 1;
+        background: transparent;
+        border: 0;
+        padding: 4px 6px; /* 🔽 lebih pendek */
+        color: #fff;
+        font-size: 14px; /* sedikit lebih kecil */
+        outline: none;
+      }
+      .search .icon {
+        opacity: 0.6;
+        margin-right: 8px;
+      }
+
+      main {
+        padding: 64px 16px 16px;
+      }
+      h2.section-title {
+        font-size: 18px;
+        margin: 6px 0 14px;
+        color: #fff;
+      }
+      .row {
+        margin-bottom: 32px;
+      }
+
+      /* horizontal carousel */
+      .carousel {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto; /* scrollbar horizontal AKTIF */
+        overflow-y: hidden;
+        padding: 8px 4px;
+        scroll-behavior: smooth;
+
+        /* samakan perilaku scrollbar dengan scrollbar vertikal halaman */
+        scrollbar-width: auto; /* Firefox */
+        scrollbar-color: auto; /* Firefox */
+      }
+
+      /* pastikan scrollbar WebKit TIDAK disembunyikan */
+      #recentCarousel::-webkit-scrollbar {
+        display: block;
+      }
+      #recentCarousel::-webkit-scrollbar-thumb {
+        background: initial;
+      }
+      #recentCarousel::-webkit-scrollbar-track {
+        background: initial;
+      }
+
+      .carousel-inner {
+        display: flex;
+        gap: 12px;
+        transition: transform 0.4s;
+      }
+
+      /* grid for other sections */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, var(--thumb-w));
+        gap: 14px;
+        justify-content: space-between;
+      }
+
+      /* 🔥 WRAPPER KHUSUS UPDATE TERBARU: POTONG OVERFLOW HORIZONTAL */
+      .updates-wrap {
+        width: 100%;
+        overflow-x: hidden; /* INI YANG BENAR-BENAR MENYEMBUNYIKAN */
+      }
+
+      /* hide scrollbar khusus Update Terbaru */
+      #updatesGrid {
+        /* cegah overflow horizontal TANPA mengubah section lain */
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(var(--thumb-w), 1fr));
+        gap: 14px;
+        width: 100%;
+        overflow: hidden; /* tidak ada scrollbar (x/y) */
+      }
+      #updatesGrid::-webkit-scrollbar {
+        display: none;
+      }
+
+      #updatesGrid::-webkit-scrollbar {
+        display: none; /* Chrome, Edge, Safari */
+      }
+      #updatesGrid::-webkit-scrollbar {
+        display: none; /* Chrome, Edge, Safari */
+      }
+      #updatesGrid::-webkit-scrollbar {
+        display: none; /* Chrome, Edge, Safari */
+      }
+
+      .card {
+        position: relative;
+        background: transparent;
+      }
+
+      /* KHUSUS UPDATE TERBARU: card tidak boleh punya lebar tetap */
+      #updatesGrid .card {
+        width: 100%;
+      }
+
+      .thumb {
+        position: relative;
+        width: var(--thumb-w);
+        height: var(--thumb-h);
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+        background: #111;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        background: #111;
+      }
+      .flag {
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        padding: 0;
+        background: none;
+      }
+      .flag svg {
+        width: 24px; /* lebar disesuaikan */
+        height: 13.5px; /* 16:9 ratio (24 * 9 / 16) */
+        display: block;
+      }
+      .count {
+        position: absolute;
+        right: 6px;
+        top: 6px;
+        bottom: auto;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 4px 6px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .title {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 6px 8px;
+        font-size: 12px;
+        background: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.8),
+          rgba(0, 0, 0, 0)
+        );
+      }
+
+      /* pastikan tidak ada judul duplikat di luar thumbnail */
+      .card > .title {
+        display: none;
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .more-btn {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      /* modal viewer */
+      .viewer {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 60;
+      }
+      .viewer.show {
+        display: flex;
+      }
+      .viewer .pane {
+        max-width: 90%;
+        max-height: 90%;
+        background: #0f0f10;
+        padding: 12px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .viewer img {
+        max-width: 80vw;
+        max-height: 80vh;
+        object-fit: contain;
+      }
+      .viewer .meta {
+        color: var(--muted);
+        margin-top: 8px;
+      }
+      .viewer .controls {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+      }
+      .btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 8px 10px;
+        border-radius: 6px;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      /* responsive */
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+      @media (max-width: 600px) {
+        .grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (max-width: 400px) {
+        .grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .search {
+        width: 92%;
+      }
+
+      /* small helper */
+      .note {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      #recentCarousel {
+        user-select: none; /* 🔥 cegah text/image ke-drag */
+      }
+
+      #recentCarousel img {
+        pointer-events: none; /* 🔥 klik lewat wrapper */
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">Manga Reader</div>
+      <div class="search-wrap">
+        <div class="search">
+          <div class="icon">🔍</div>
+          <input id="searchInput" placeholder="Cari judul" />
+        </div>
+      </div>
+      <button class="btn" id="clearRecent" title="Clear terakhir dibaca">
+        Bersihkan Data
+      </button>
+    </header>
+
+    <main>
+      <!-- Terakhir Dibaca -->
+      <section class="row" id="recentSection">
+        <div class="section-head">
+          <h2 class="section-title">Terakhir Dibaca</h2>
+        </div>
+        <div class="carousel" id="recentCarousel" aria-hidden="false">
+          <div class="carousel-inner" id="recentInner"></div>
+        </div>
+      </section>
+
+      <!-- Update Terbaru -->
+      <section class="row" id="updatesSection">
+        <div class="section-head">
+          <h2 class="section-title">Update Terbaru</h2>
+          <a class="more-btn" href="#" id="btnAllUpdates"
+            >Tampilkan Semuanya &gt;</a
+          >
+        </div>
+        <div class="updates-wrap">
+          <div class="grid" id="updatesGrid"></div>
+        </div>
+      </section>
+
+      <!-- Good -->
+      <section class="row" id="goodSection">
+        <div class="section-head">
+          <h2 class="section-title">Good</h2>
+          <a class="more-btn" href="#" id="btnAllGood"
+            >Tampilkan Semuanya &gt;</a
+          >
+        </div>
+        <div class="grid" id="goodGrid"></div>
+      </section>
+
+      <!-- Normal -->
+      <section class="row" id="normalSection">
+        <div class="section-head">
+          <h2 class="section-title">Normal</h2>
+          <a class="more-btn" href="#" id="btnAllNormal"
+            >Tampilkan Semuanya &gt;</a
+          >
+        </div>
+        <div class="grid" id="normalGrid"></div>
+      </section>
+    </main>
+
+    <!-- Viewer modal -->
+    <div class="viewer" id="viewer">
+      <div class="pane">
+        <button class="btn" id="closeViewer">Close</button>
+        <div style="height: 8px"></div>
+        <img id="viewerImage" src="" alt="" />
+        <div class="meta" id="viewerMeta"></div>
+        <div class="controls">
+          <button class="btn" id="prevBtn">Prev</button>
+          <button class="btn" id="nextBtn">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /***** CONFIG: set your Google Sheet ID and Sheet name here *****/
+      // MASUKKAN LINK CSV GOOGLE SHEET HASIL "Publish to web" DI SINI
+      // Contoh:
+      // https://docs.google.com/spreadsheets/d/e/XXXXXXXXXXXX/pub?output=csv
+      const SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdkX9TLxwvLdTEQYBxrJAi0-lWZ3YSKTGQ-1VJzMulby5d2mKbvWi_adl06DpjFHqhU3aOrqr7GIpl/pub?gid=0&single=true&output=csv";
+
+      // Utilities
+      function parseCSV(text) {
+        const rows = [];
+        let cur = [];
+        let field = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (inQuotes) {
+            if (ch === '"') {
+              if (text[i + 1] === '"') {
+                field += '"';
+                i++;
+              } else {
+                inQuotes = false;
+              }
+            } else field += ch;
+          } else {
+            if (ch === '"') {
+              inQuotes = true;
+            } else if (ch === ",") {
+              cur.push(field);
+              field = "";
+            } else if (ch === "\r") continue;
+            else if (ch === "\n") {
+              cur.push(field);
+              field = "";
+              rows.push(cur);
+              cur = [];
+            } else field += ch;
+          }
+        }
+        // last
+        if (field !== "" || cur.length > 0) {
+          cur.push(field);
+          rows.push(cur);
+        }
+        return rows;
+      }
+
+      // load data
+      let items = []; // will be objects
+      async function loadSheet() {
+        try {
+          const res = await fetch(SHEET_CSV_URL);
+          if (!res.ok)
+            throw new Error(
+              "Failed to fetch sheet. Make sure sheet is published to web and SHEET_ID is correct.",
+            );
+          const txt = await res.text();
+          const rows = parseCSV(txt);
+          // rows[0] is header. Data from row 1 onward
+          for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            if (row.length < 4) continue; // need at least no,bahasa,rating,nama
+            const kondisi = (row[4] || "").trim().toUpperCase();
+            if (kondisi !== "YES") continue;
+
+            const obj = {
+              no: (row[0] || "").trim(),
+              bahasa: (row[1] || "").trim(),
+              rating: (row[2] || "").trim().toUpperCase(),
+              nama: (row[3] || "").trim(),
+              images: [],
+            };
+
+            // 🔥 gambar DIMULAI tepat setelah kolom "Kondisi"
+            for (let c = 5; c < row.length; c++) {
+              const v = (row[c] || "").trim();
+              if (v) obj.images.push(v);
+            }
+
+            items.push(obj);
+          }
+          // items ready
+          renderAll();
+        } catch (err) {
+          console.error(err);
+          document.querySelector("main").innerHTML =
+            `<div style="padding:24px;color:#f66">Error: ${err.message}</div>`;
+        }
+      }
+
+      // helpers for flag icons (simple svg)
+      function flagSVG(code) {
+        if (!code) return "";
+        code = code.toUpperCase();
+        if (code === "ENG")
+          return `<svg viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg"><clipPath id="a"><rect width="60" height="30"/></clipPath><g clip-path="url(#a)"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#C8102E" stroke-width="4"/><rect x="24" width="12" height="30" fill="#fff"/><rect y="9" width="60" height="12" fill="#fff"/><rect x="26" width="8" height="30" fill="#C8102E"/><rect y="11" width="60" height="8" fill="#C8102E"/></g></svg>`;
+        if (code === "JPN" || code === "JAPAN")
+          return `<svg viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="30" fill="#fff"/><circle cx="30" cy="15" r="9" fill="#bc002d"/></svg>`;
+        if (code === "IDN" || code === "INA")
+          return `<svg viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="15" fill="#e70012"/><rect y="15" width="60" height="15" fill="#ffffff"/></svg>`;
+        return `<div style="min-width:20px;text-align:center">${code}</div>`;
+      }
+
+      // create card element
+      function toDirectImage(url) {
+        if (!url) return "";
+        // Ambil FILE_ID dari berbagai format link Drive
+        const m1 = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+        const m2 = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+        const m3 = url.match(/drive\.google\.com\/uc\?[^#]*id=([^&]+)/);
+        const m4 = url.match(/id=([^&]+)/);
+        const id = m1?.[1] || m2?.[1] || m3?.[1] || m4?.[1];
+        if (!id) return url;
+        // PAKAI THUMBNAIL ENDPOINT (PALING STABIL UNTUK <img>)
+        return `https://drive.google.com/thumbnail?id=${id}&sz=w600`;
+      }
+
+      function createCard(item) {
+        const el = document.createElement("div");
+        el.className = "card";
+
+        const thumb = document.createElement("div");
+        thumb.className = "thumb";
+
+        const img = document.createElement("img");
+        const firstImg = item.images[0];
+        img.src = firstImg ? toDirectImage(firstImg) : "";
+        img.alt = item.nama;
+        thumb.appendChild(img);
+
+        // flag
+        const f = document.createElement("div");
+        f.className = "flag";
+        f.innerHTML = flagSVG(item.bahasa || "");
+        thumb.appendChild(f);
+
+        // count
+        const c = document.createElement("div");
+        c.className = "count";
+        c.textContent = item.images.length;
+        thumb.appendChild(c);
+
+        // 🔥 SATU-SATUNYA JUDUL (OVERLAY)
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = item.nama;
+        thumb.appendChild(title);
+
+        thumb.addEventListener("click", () => {
+          const id = parseInt(item.no, 10) || item.no;
+          window.location.href = "view-title.html?no=" + id;
+        });
+
+        el.appendChild(thumb);
+        return el;
+      }
+      // render sections
+      function renderAll() {
+        // recent: if localStorage has list, use it. otherwise random 15
+        const recentInner = document.getElementById("recentInner");
+        recentInner.innerHTML = "";
+        const stored = JSON.parse(localStorage.getItem("manga_recent") || "[]");
+        let recentItems = [];
+        if (stored.length) {
+          // map stored to items by no or nama
+          for (const key of stored) {
+            const it = items.find((x) => x.no === key || x.nama === key);
+            if (it) recentItems.push(it);
+          }
+        } else {
+          // 15 random
+          const shuffled = [...items]
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 15);
+          recentItems = shuffled;
+        }
+        // show only up to 15 but visually we can show 6 at a time
+        recentInner.innerHTML = "";
+
+        // ambil maksimal 15
+        const baseItems = recentItems.slice(0, 15);
+
+        // 🔥 render 2x (clone)
+        [...baseItems, ...baseItems].forEach((it) => {
+          recentInner.appendChild(createCard(it));
+        });
+
+        requestAnimationFrame(() => {
+          const el = document.getElementById("recentCarousel");
+          el.scrollLeft = el.scrollWidth / 2;
+        });
+
+        // autoplay scroll left-right
+        startCarouselAutoScroll();
+        startRecentAutoMove();
+
+        // updates: gabungan NORMAL + GOOD dari paling baru
+        const updatesGrid = document.getElementById("updatesGrid");
+        updatesGrid.innerHTML = "";
+        const updates = items
+          .slice() // copy
+          .reverse() // terbaru di atas
+          .filter((it) => ["NORMAL", "GOOD", "GOOOD"].includes(it.rating))
+          .slice(0, 28);
+        updates.forEach((it) => updatesGrid.appendChild(createCard(it)));
+
+        // normal: rating NORMAL (sumber sama dengan updates jika semuanya NORMAL)
+        const normalGrid = document.getElementById("normalGrid");
+        normalGrid.innerHTML = "";
+        const normal = items
+          .slice()
+          .reverse()
+          .filter((it) => it.rating === "NORMAL")
+          .slice(0, 28);
+        normal.forEach((it) => normalGrid.appendChild(createCard(it)));
+
+        // good: rating GOOD / GOOOD (sumber sama dengan updates jika semuanya GOOD)
+        const goodGrid = document.getElementById("goodGrid");
+        goodGrid.innerHTML = "";
+        const good = items
+          .slice()
+          .reverse()
+          .filter((it) => ["GOOD", "GOOOD"].includes(it.rating))
+          .slice(0, 28);
+        good.forEach((it) => goodGrid.appendChild(createCard(it)));
+      }
+
+      // carousel auto scroll
+      let carouselInterval = null;
+      function startCarouselAutoScroll() {
+        const el = document.getElementById("recentCarousel");
+
+        let isDown = false;
+        let startX = 0;
+        let scrollLeft = 0;
+        let dragged = false;
+
+        el.style.cursor = "grab";
+
+        el.addEventListener("mousedown", (e) => {
+          isDown = true;
+          dragged = false;
+          startX = e.clientX;
+          scrollLeft = el.scrollLeft;
+
+          el.style.cursor = "grabbing";
+        });
+
+        document.addEventListener("mousemove", (e) => {
+          if (!isDown) return;
+
+          const dx = e.clientX - startX;
+
+          if (Math.abs(dx) > 6) {
+            dragged = true;
+            e.preventDefault(); // 🔥 KUNCI UTAMA
+          }
+
+          el.scrollLeft = scrollLeft - dx;
+        });
+
+        document.addEventListener("mouseup", () => {
+          isDown = false;
+          el.style.cursor = "grab";
+
+          // reset sedikit delay supaya klik gak kebaca
+          setTimeout(() => {
+            dragged = false;
+          }, 0);
+        });
+
+        // 🔥 BLOK KLIK JIKA BARU SAJA DRAG
+        el.addEventListener(
+          "click",
+          (e) => {
+            if (dragged) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+            }
+          },
+          true,
+        );
+      }
+
+      function startRecentAutoMove() {
+        const el = document.getElementById("recentCarousel");
+
+        let speed = 0.4;
+        let acc = 0;
+        let paused = false;
+
+        function step() {
+          if (paused) return;
+          if (el.scrollWidth <= el.clientWidth) return;
+
+          acc += speed;
+
+          if (acc >= 1) {
+            const move = Math.floor(acc);
+            el.scrollLeft += move;
+            acc -= move;
+          }
+
+          const half = el.scrollWidth / 2;
+
+          // 🔁 JAGA AGAR TETAP DI TENGAH CLONE
+          if (el.scrollLeft >= half) {
+            el.scrollLeft -= half;
+          } else if (el.scrollLeft < 0) {
+            el.scrollLeft += half;
+          }
+
+          requestAnimationFrame(step);
+        }
+
+        el.addEventListener("mouseenter", () => (paused = true));
+        el.addEventListener("mouseleave", () => {
+          paused = false;
+          step();
+        });
+
+        step();
+      }
+
+      // viewer
+      let currentViewer = { images: [], idx: 0, item: null };
+      const viewer = document.getElementById("viewer");
+      const viewerImage = document.getElementById("viewerImage");
+      const viewerMeta = document.getElementById("viewerMeta");
+      document.getElementById("closeViewer").addEventListener("click", () => {
+        viewer.classList.remove("show");
+      });
+      document.getElementById("prevBtn").addEventListener("click", () => {
+        if (currentViewer.idx > 0) {
+          currentViewer.idx--;
+          showViewerIndex();
+        }
+      });
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        if (currentViewer.idx < currentViewer.images.length - 1) {
+          currentViewer.idx++;
+          showViewerIndex();
+        }
+      });
+
+      function openViewer(item) {
+        currentViewer.item = item;
+        currentViewer.images = item.images.length
+          ? item.images.map(toDirectImage)
+          : [""];
+        currentViewer.idx = 0;
+        showViewerIndex();
+        viewer.classList.add("show");
+      }
+      function showViewerIndex() {
+        viewerImage.src = currentViewer.images[currentViewer.idx] || "";
+        viewerMeta.textContent = `${currentViewer.item.nama} — ${currentViewer.idx + 1}/${currentViewer.images.length}`;
+      }
+
+      // localStorage recent management
+      function addToRecent(item) {
+        const key = item.no || item.nama;
+        let arr = JSON.parse(localStorage.getItem("manga_recent") || "[]");
+        // remove existing
+        arr = arr.filter((x) => x !== key);
+        arr.unshift(key);
+        if (arr.length > 15) arr = arr.slice(0, 15);
+        localStorage.setItem("manga_recent", JSON.stringify(arr));
+        // re-render recent
+        renderAll();
+      }
+
+      // simple search: on Enter filter all grids to show matches
+      const searchInput = document.getElementById("searchInput");
+      const clearBtn = document.getElementById("clearRecent");
+
+      clearBtn.addEventListener("click", () => {
+        localStorage.removeItem("manga_recent");
+        renderAll();
+      });
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const q = searchInput.value.trim();
+          if (!q) return;
+          window.location.href =
+            "search.html?q=" + encodeURIComponent(q) + "&page=1";
+        }
+      });
+
+      // All Updates overlay: show full list in modal style
+      document
+        .getElementById("btnAllUpdates")
+        .addEventListener("click", (e) => {
+          e.preventDefault();
+          window.location.href = "view.html?list=updates&page=1";
+        });
+      function showAllUpdates() {
+        const overlay = document.createElement("div");
+        overlay.style.position = "fixed";
+        overlay.style.inset = "0";
+        overlay.style.background = "rgba(0,0,0,0.9)";
+        overlay.style.zIndex = 80;
+        overlay.style.overflow = "auto";
+        const wrap = document.createElement("div");
+        wrap.style.maxWidth = "1100px";
+        wrap.style.margin = "32px auto";
+        wrap.style.padding = "18px";
+        const close = document.createElement("button");
+        close.className = "btn";
+        close.textContent = "Close";
+        close.addEventListener("click", () => overlay.remove());
+        wrap.appendChild(close);
+        const g = document.createElement("div");
+        g.className = "grid";
+        g.style.marginTop = "12px";
+        items
+          .slice()
+          .reverse()
+          .forEach((it) => g.appendChild(createCard(it)));
+        wrap.appendChild(g);
+        overlay.appendChild(wrap);
+        document.body.appendChild(overlay);
+      }
+
+      // All Normal
+      document.getElementById("btnAllNormal").addEventListener("click", (e) => {
+        e.preventDefault();
+        window.location.href = "view.html?list=normal&page=1";
+      });
+      document.getElementById("btnAllGood").addEventListener("click", (e) => {
+        e.preventDefault();
+        window.location.href = "view.html?list=good&page=1";
+      });
+      function showAllByPredicate(pred) {
+        const overlay = document.createElement("div");
+        overlay.style.position = "fixed";
+        overlay.style.inset = "0";
+        overlay.style.background = "rgba(0,0,0,0.9)";
+        overlay.style.zIndex = 80;
+        overlay.style.overflow = "auto";
+        const wrap = document.createElement("div");
+        wrap.style.maxWidth = "1100px";
+        wrap.style.margin = "32px auto";
+        wrap.style.padding = "18px";
+        const close = document.createElement("button");
+        close.className = "btn";
+        close.textContent = "Close";
+        close.addEventListener("click", () => overlay.remove());
+        wrap.appendChild(close);
+        const g = document.createElement("div");
+        g.className = "grid";
+        g.style.marginTop = "12px";
+        items.filter(pred).forEach((it) => g.appendChild(createCard(it)));
+        wrap.appendChild(g);
+        overlay.appendChild(wrap);
+        document.body.appendChild(overlay);
+      }
+
+      // initial
+      loadSheet();
+
+      // note: you must publish your Google Sheet to the web (File > Publish to web) and set SHEET_ID above.
+    </script>
+  </body>
+</html>
