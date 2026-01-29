@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Search — Manga Reader</title>
+
+<style>
+:root{
+  --bg:#1e1f21;
+  --muted:#a8a8a8;
+  --accent:#3aa3ff;
+  --thumb-w:140px;
+  --thumb-h:210px;
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:#fff}
+
+/* ===== HEADER ===== */
+header{
+  position:fixed;
+  top:0;left:0;right:0;
+  z-index:1000;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 16px;
+  background:#1e1f21;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.brand{
+  font-weight:700;
+  font-size:18px;
+  color:#fff;
+  text-decoration:none;
+}
+.search-wrap{
+  flex:1;
+  display:flex;
+  justify-content:center;
+}
+.search{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid rgba(255,255,255,.05);
+  padding:6px 10px;
+  border-radius:10px;
+  max-width:540px;
+  width:100%;
+}
+.search input{
+  background:transparent;
+  border:0;
+  outline:none;
+  color:#fff;
+  width:100%;
+  font-size:14px;
+}
+
+/* ===== TOP PAGER ===== */
+.top-pager-wrap{
+  margin-top:64px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+}
+.top-pager{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  justify-content:center;
+}
+.page-num{
+  width:36px;
+  height:36px;
+  border-radius:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.08);
+  cursor:pointer;
+}
+.page-num.active{
+  color:var(--accent);
+  box-shadow:0 0 0 4px rgba(58,163,255,.15);
+}
+.found-line{
+  font-size:13px;
+  color:var(--muted);
+}
+
+/* ===== GRID ===== */
+main{padding:14px}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, var(--thumb-w));
+  gap:14px;
+  justify-content:start; /* 🔥 INI KUNCINYA */
+}
+
+.thumb{
+  width:var(--thumb-w);
+  height:var(--thumb-h);
+  border-radius:8px;
+  overflow:hidden;
+  background:#111;
+  position:relative;
+  cursor:pointer;
+}
+.thumb img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.title{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  padding:6px 8px;
+  font-size:12px;
+  background:linear-gradient(to top,rgba(0,0,0,.85),transparent);
+}
+.count{
+  position:absolute;
+  top:6px;
+  right:6px;
+  background:rgba(0,0,0,.6);
+  padding:4px 6px;
+  border-radius:6px;
+  font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <a href="index.html" class="brand">Manga Reader</a>
+  <div class="search-wrap">
+    <div class="search">
+      🔍
+      <input id="searchInput" placeholder="Cari judul">
+    </div>
+  </div>
+</header>
+
+<div class="top-pager-wrap">
+  <div class="top-pager" id="pager"></div>
+  <div class="found-line" id="foundLine">Ditemukan 0 judul</div>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script>
+/* ===== CONFIG ===== */
+const SHEET_CSV_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQdkX9TLxwvLdTEQYBxrJAi0-lWZ3YSKTGQ-1VJzMulby5d2mKbvWi_adl06DpjFHqhU3aOrqr7GIpl/pub?gid=0&single=true&output=csv";
+
+const PER_PAGE = 48;
+
+/* ===== UTIL ===== */
+function parseCSV(text){
+  const rows=[];
+  let cur=[],field="",inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inQuotes){
+      if(ch==='"'){
+        if(text[i+1]==='"'){field+='"';i++}
+        else inQuotes=false;
+      } else field+=ch;
+    } else {
+      if(ch==='"') inQuotes=true;
+      else if(ch===','){cur.push(field);field="";}
+      else if(ch==='\n'){cur.push(field);rows.push(cur);cur=[];field="";}
+      else if(ch!=='\r') field+=ch;
+    }
+  }
+  if(field||cur.length){cur.push(field);rows.push(cur);}
+  return rows;
+}
+
+function toDirectImage(url){
+  if(!url) return "";
+  const m=url.match(/\/d\/([^/]+)/)||url.match(/id=([^&]+)/);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w600` : url;
+}
+
+/* ===== SEARCH LOGIC (FINAL) ===== */
+function matchTitle(title, query){
+  if(!title || !query) return false;
+
+  const t = title
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+
+  const words = query
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim()
+    .split(" ");
+
+  return words.every(w => t.includes(w));
+}
+
+/* ===== STATE ===== */
+const params = new URLSearchParams(location.search);
+const query = decodeURIComponent(params.get("q") || "");
+let page = parseInt(params.get("page") || "1",10);
+
+document.getElementById("searchInput").value = query;
+
+let items=[], filtered=[];
+
+/* ===== LOAD DATA ===== */
+fetch(SHEET_CSV_URL)
+.then(r=>r.text())
+.then(txt=>{
+  const rows=parseCSV(txt);
+
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    if(r.length<6) continue;
+    if((r[4]||"").trim().toUpperCase()!=="YES") continue;
+
+    items.push({
+      no:(r[0]||"").trim(),
+      nama:(r[3]||"").trim(),
+      images:r.slice(5).filter(v=>v && v.trim())
+    });
+  }
+
+  filtered = items.filter(it => matchTitle(it.nama, query));
+  render();
+});
+
+/* ===== RENDER ===== */
+function render(){
+  const total = filtered.length;
+
+  document.getElementById("foundLine").textContent =
+    `Ditemukan ${total.toLocaleString("id-ID")} judul`;
+
+  const pager = document.getElementById("pager");
+
+  /* 🔥 JIKA ITEM <= PER_PAGE → SEMBUNYIKAN PAGINATION */
+  if (total <= PER_PAGE) {
+    pager.innerHTML = "";
+    pager.style.display = "none";
+  } else {
+    pager.style.display = "flex";
+
+    const totalPages = Math.ceil(total / PER_PAGE);
+    page = Math.min(page, totalPages);
+
+    pager.innerHTML = "";
+    for (let i = 1; i <= totalPages; i++) {
+      const b = document.createElement("div");
+      b.className = "page-num" + (i === page ? " active" : "");
+      b.textContent = i;
+      b.onclick = () => {
+        location.href =
+          `search.html?q=${encodeURIComponent(query)}&page=${i}`;
+      };
+      pager.appendChild(b);
+    }
+  }
+
+  /* ===== GRID ===== */
+  const start = (page - 1) * PER_PAGE;
+  const show = filtered.slice(start, start + PER_PAGE);
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  show.forEach(it => {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerHTML = `
+      <img src="${toDirectImage(it.images[0])}">
+      <div class="count">${it.images.length}</div>
+      <div class="title">${it.nama}</div>
+    `;
+    d.onclick = () => {
+      const id = parseInt(it.no, 10) || it.no;
+      location.href = "view-title.html?no=" + id;
+    };
+    grid.appendChild(d);
+  });
+}
+
+
+
+/* ===== HEADER SEARCH ===== */
+document.getElementById("searchInput")
+.addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    const q=e.target.value.trim();
+    if(!q) return;
+    location.href="search.html?q="+encodeURIComponent(q)+"&page=1";
+  }
+});
+</script>
+
+</body>
+</html>

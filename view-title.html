@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>View Title</title>
+    <style>
+      :root {
+        --bg: #1e1f21;
+        --card: #252628;
+        --muted: #a8a8a8;
+        --accent: #3aa3ff;
+        --thumb-w: 120px; /* sesuaikan dengan index.html */
+        --gap: 12px;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: #fff;
+      }
+      /* Header — pastikan ini sama persis dengan header di home/view */
+      header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: #1e1f21;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .brand {
+        font-weight: 700;
+        font-size: 18px;
+        color: inherit;
+        text-decoration: none;
+      }
+      .search-wrap {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 6px 8px;
+        border-radius: 10px;
+        max-width: 540px;
+        width: 100%;
+      }
+      .search input {
+        background: transparent;
+        border: 0;
+        outline: none;
+        color: #fff;
+        width: 100%;
+        font-size: 14px;
+      }
+
+      main {
+        width: 100%;
+        padding: 16px;
+        margin: 0;
+        margin-top: 64px; /* sesuaikan tinggi header */
+        max-width: 1400px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      /* layout atas: besar + info kanan */
+      .top-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 24px;
+        align-items: start;
+      }
+
+      @media (max-width: 1000px) {
+        .top-row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .large-view {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+
+        aspect-ratio: 2 / 3;
+        max-height: 80vh;
+      }
+
+      .large-view img {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+        border-radius: 6px;
+      }
+
+      .info {
+        padding-top: 4px;
+      }
+
+      .info h1 {
+        margin: 0 0 12px 0;
+        font-size: 40px;
+        line-height: 1.25;
+        font-weight: 700;
+      }
+
+      .info .meta {
+        color: var(--muted);
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      /* gallery bawah */
+      .gallery-wrap {
+        margin-top: 22px;
+        display: flex;
+        justify-content: center;
+      }
+      .gallery {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(var(--thumb-w), 1fr));
+        gap: var(--gap);
+        align-items: start;
+      }
+
+      .gcard {
+        position: relative;
+        overflow: hidden;
+        border-radius: 6px;
+        background: #111;
+        aspect-ratio: 2/3;
+      }
+      .gcard img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .pnum {
+        position: absolute;
+        bottom: 6px;
+        left: 6px;
+        font-size: 11px;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.36);
+        padding: 3px 6px;
+        border-radius: 4px;
+        pointer-events: none;
+      }
+
+      /* thumbnail strip clickable highlight */
+      .gcard:hover {
+        outline: 2px solid rgba(58, 163, 255, 0.08);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      }
+
+      /* responsive tweaks */
+      @media (max-width: 560px) {
+        :root {
+          --thumb-w: 92px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="index.html">Manga Reader</a>
+      <div class="search-wrap">
+        <div class="search">
+          <div style="opacity: 0.6">🔍</div>
+          <input
+            id="searchInput"
+            placeholder="Cari judul"
+            aria-label="search"
+          />
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div id="content">
+        <!-- top row: large + info -->
+        <div class="top-row">
+          <div class="large-view" id="largeView">
+            <!-- large image akan diset oleh JS -->
+          </div>
+          <aside class="info" id="infoBox">
+            <h1 id="titleText">Loading…</h1>
+            <div class="meta" id="metaText"></div>
+          </aside>
+        </div>
+
+        <!-- gallery -->
+        <div class="gallery-wrap">
+          <div id="gallery" class="gallery" aria-live="polite"></div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      // CONFIG: samakan dengan view.html/index.html
+      const SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdkX9TLxwvLdTEQYBxrJAi0-lWZ3YSKTGQ-1VJzMulby5d2mKbvWi_adl06DpjFHqhU3aOrqr7GIpl/pub?gid=0&single=true&output=csv";
+
+      // simple CSV parser (same logic seperti yang dipakai di view)
+      function parseCSV(text) {
+        const rows = [];
+        let cur = [];
+        let field = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (inQuotes) {
+            if (ch === '"') {
+              if (text[i + 1] === '"') {
+                field += '"';
+                i++;
+              } else {
+                inQuotes = false;
+              }
+            } else field += ch;
+          } else {
+            if (ch === '"') {
+              inQuotes = true;
+            } else if (ch === ",") {
+              cur.push(field);
+              field = "";
+            } else if (ch === "\r") continue;
+            else if (ch === "\n") {
+              cur.push(field);
+              field = "";
+              rows.push(cur);
+              cur = [];
+            } else field += ch;
+          }
+        }
+        if (field !== "" || cur.length > 0) {
+          cur.push(field);
+          rows.push(cur);
+        }
+        return rows;
+      }
+
+      function toDirectImage(url) {
+        if (!url) return "";
+        const m1 = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+        const m2 = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+        const m3 = url.match(/drive\.google\.com\/uc\?[^#]*id=([^&]+)/);
+        const m4 = url.match(/id=([^&]+)/);
+        const id = m1?.[1] || m2?.[1] || m3?.[1] || m4?.[1];
+        if (!id) return url;
+        return `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
+      }
+
+      // ambil param 'no' dari URL, strip leading zero
+      function getNoParam() {
+        const p =
+          new URLSearchParams(location.search).get("no") ||
+          location.search.replace("?", "");
+        if (!p) return null;
+        const n = parseInt(p, 10);
+        return isNaN(n) ? null : n;
+      }
+
+      // render helpers
+      const largeView = document.getElementById("largeView");
+      const titleText = document.getElementById("titleText");
+      const metaText = document.getElementById("metaText");
+      const gallery = document.getElementById("gallery");
+
+      async function load() {
+        const noParam = getNoParam();
+        if (noParam === null) {
+          titleText.textContent =
+            "ID tidak ditemukan di URL (contoh: view-title.html?no=4)";
+          return;
+        }
+        try {
+          const res = await fetch(SHEET_CSV_URL);
+          if (!res.ok) throw new Error("Gagal mengambil data sheet");
+          const txt = await res.text();
+          const rows = parseCSV(txt);
+          const data = [];
+          for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            if (row.length < 4) continue;
+            const kondisi = (row[4] || "").trim().toUpperCase();
+            if (kondisi !== "YES") continue;
+
+            const obj = {
+              no: (row[0] || "").trim(),
+              bahasa: (row[1] || "").trim(),
+              rating: (row[2] || "").trim(),
+              nama: (row[3] || "").trim(),
+              images: [],
+            };
+
+            // 🔥 gambar dimulai tepat setelah kolom "Kondisi"
+            for (let c = 5; c < row.length; c++) {
+              const v = (row[c] || "").trim();
+              if (v) obj.images.push(v);
+            }
+
+            data.push(obj);
+          }
+
+          // cari item dengan nomor cocok. compare as integer (handle leading zeros)
+          let item = data.find((it) => {
+            const n = parseInt(it.no, 10);
+            return !isNaN(n) && n === noParam;
+          });
+
+          // fallback: jika tidak ketemu, coba treat noParam sebagai 1-index array position
+          if (!item) {
+            const idx = noParam - 1;
+            if (idx >= 0 && idx < data.length) item = data[idx];
+          }
+
+          if (!item) {
+            titleText.textContent = "Judul tidak ditemukan";
+            metaText.textContent = "";
+            return;
+          }
+
+          renderItem(item);
+        } catch (err) {
+          titleText.textContent = "Error: " + err.message;
+        }
+      }
+
+      function renderItem(item) {
+        addToRecent(item);
+        titleText.textContent = item.nama || "Untitled";
+
+        // format nomor (tetap dengan leading zero)
+        const nomor = item.no ? item.no.padStart(5, "0") : "00000";
+
+        // format rating
+        let ratingText = "Normal";
+        if (
+          (item.rating || "").toUpperCase() === "GOOD" ||
+          (item.rating || "").toUpperCase() === "GOOOD"
+        ) {
+          ratingText = "Good";
+        }
+
+        // format bahasa
+        let bahasaText = "Tidak diketahui";
+        const b = (item.bahasa || "").toUpperCase();
+        if (b === "IDN" || b === "INA") bahasaText = "Bahasa Indonesia";
+        else if (b === "JPN" || b === "JAPAN") bahasaText = "Bahasa Jepang";
+        else if (b === "ENG") bahasaText = "Bahasa Inggris";
+
+        metaText.innerHTML = `
+        <div>Nomor ${nomor}</div>
+        <div>Rating ${ratingText}</div>
+        <div>${bahasaText}</div>
+        <div>${item.images.length} halaman</div>
+      `;
+
+        /* ==== SISANYA BIARKAN ==== */
+        const mainImg = document.createElement("img");
+        mainImg.src = item.images.length ? toDirectImage(item.images[0]) : "";
+        mainImg.alt = item.nama || "";
+
+        mainImg.addEventListener("click", () => {
+          const id = parseInt(item.no, 10);
+          window.location.href = `view-image.html?no=${id}`;
+        });
+
+        largeView.innerHTML = "";
+        largeView.appendChild(mainImg);
+
+        gallery.innerHTML = "";
+        item.images.forEach((imgUrl, idx) => {
+          const g = document.createElement("div");
+          g.className = "gcard";
+          const im = document.createElement("img");
+          im.src = toDirectImage(imgUrl);
+          g.appendChild(im);
+
+          const pn = document.createElement("div");
+          pn.className = "pnum";
+          pn.textContent = `${idx + 1}`;
+          g.appendChild(pn);
+
+          g.addEventListener("click", () => {
+            const id = parseInt(item.no, 10);
+            window.location.href = `view-image.html?no=${id}`;
+          });
+
+          gallery.appendChild(g);
+        });
+      }
+
+      // init
+      load();
+
+      function addToRecent(item) {
+        if (!item) return;
+
+        const key = item.no || item.nama;
+
+        let recent = JSON.parse(localStorage.getItem("manga_recent") || "[]");
+
+        // hapus kalau sudah ada (biar tidak dobel)
+        recent = recent.filter((x) => x !== key);
+
+        // masukkan ke paling depan
+        recent.unshift(key);
+
+        // batasi maksimal 15 (samakan dengan home.html)
+        if (recent.length > 15) {
+          recent = recent.slice(0, 15);
+        }
+
+        localStorage.setItem("manga_recent", JSON.stringify(recent));
+      }
+    </script>
+
+    <script>
+      const searchInput = document.getElementById("searchInput");
+
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const q = searchInput.value.trim();
+          if (!q) return;
+          window.location.href =
+            "search.html?q=" + encodeURIComponent(q) + "&page=1";
+        }
+      });
+    </script>
+  </body>
+</html>

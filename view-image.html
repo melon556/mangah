@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>View Image</title>
+
+    <style>
+      :root {
+        --bg: #1e1f21;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          Arial;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: #fff;
+      }
+
+      /* ===== HEADER (100% SAMA) ===== */
+      header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: #1e1f21;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .brand {
+        font-weight: 700;
+        font-size: 18px;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .search-wrap {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+      }
+
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 6px 8px;
+        border-radius: 10px;
+        max-width: 540px;
+        width: 100%;
+      }
+
+      .search input {
+        background: transparent;
+        border: 0;
+        outline: none;
+        color: #fff;
+        width: 100%;
+        font-size: 14px;
+      }
+
+      /* ===== IMAGE VIEW ===== */
+      main {
+        margin-top: 64px; /* tinggi header */
+      }
+
+      .image-column {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 40px;
+      }
+
+      /* 🔑 BAGIAN PALING PENTING */
+      .image-column img {
+        max-width: 100%; /* fit layar saat awal */
+        height: auto; /* proporsional */
+        display: block;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a class="brand" href="index.html">Manga Reader</a>
+      <div class="search-wrap">
+        <div class="search">
+          <div style="opacity: 0.6">🔍</div>
+          <input id="searchInput" placeholder="Cari judul" />
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <h1
+        id="titleText"
+        style="
+          font-size: 20px;
+          font-weight: 600;
+          margin: 12px 16px;
+          text-align: center;
+        "
+      ></h1>
+      <div id="imageColumn" class="image-column"></div>
+    </main>
+
+    <script>
+      const SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdkX9TLxwvLdTEQYBxrJAi0-lWZ3YSKTGQ-1VJzMulby5d2mKbvWi_adl06DpjFHqhU3aOrqr7GIpl/pub?gid=0&single=true&output=csv";
+
+      function parseCSV(text) {
+        const rows = [];
+        let cur = [];
+        let field = "";
+        let inQuotes = false;
+
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (inQuotes) {
+            if (ch === '"') {
+              if (text[i + 1] === '"') {
+                field += '"';
+                i++;
+              } else inQuotes = false;
+            } else field += ch;
+          } else {
+            if (ch === '"') inQuotes = true;
+            else if (ch === ",") {
+              cur.push(field);
+              field = "";
+            } else if (ch === "\n") {
+              cur.push(field);
+              rows.push(cur);
+              cur = [];
+              field = "";
+            } else if (ch !== "\r") field += ch;
+          }
+        }
+
+        if (field || cur.length) {
+          cur.push(field);
+          rows.push(cur);
+        }
+
+        return rows;
+      }
+
+      function toDirectImage(url) {
+        if (!url) return "";
+        const m = url.match(/\/d\/([^/]+)/) || url.match(/id=([^&]+)/);
+        if (!m) return url;
+        return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w2000`;
+      }
+
+      function getNoParam() {
+        const p = new URLSearchParams(location.search).get("no");
+        if (!p) return null;
+        const n = parseInt(p, 10);
+        return isNaN(n) ? null : n;
+      }
+
+      async function loadImages() {
+        const no = getNoParam();
+        if (no === null) return;
+
+        const res = await fetch(SHEET_CSV_URL);
+        const txt = await res.text();
+        const rows = parseCSV(txt);
+
+        const data = [];
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (r.length < 6) continue;
+
+          const kondisi = (r[4] || "").trim().toUpperCase();
+          if (kondisi !== "YES") continue;
+
+          data.push({
+            no: parseInt(r[0], 10),
+            nama: (r[3] || "").trim(),
+            images: r.slice(5).filter(Boolean),
+          });
+        }
+
+        const item = data.find((d) => d.no === no) || data[no - 1];
+        if (!item) return;
+
+        document.getElementById("titleText").textContent = item.nama || "";
+
+        const col = document.getElementById("imageColumn");
+        col.innerHTML = "";
+
+        item.images.forEach((url) => {
+          const img = document.createElement("img");
+          img.src = toDirectImage(url);
+          col.appendChild(img);
+        });
+      }
+
+      loadImages();
+    </script>
+
+    <script>
+      const searchInput = document.getElementById("searchInput");
+
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const q = searchInput.value.trim();
+          if (!q) return;
+          window.location.href =
+            "search.html?q=" + encodeURIComponent(q) + "&page=1";
+        }
+      });
+    </script>
+  </body>
+</html>

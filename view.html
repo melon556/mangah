@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>View — Semua Daftar</title>
+    <style>
+      :root {
+        --bg: #1e1f21;
+        --card: #252628;
+        --muted: #a8a8a8;
+        --accent: #3aa3ff;
+        --thumb-w: 140px;
+        --thumb-h: 210px;
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: #fff;
+      }
+      /* --- copy header styles from index.html so header identical --- */
+      header {
+        position: fixed; /* 🔥 GANTI DARI sticky */
+        top: 0;
+        left: 0;
+        right: 0;
+
+        z-index: 1000;
+
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        padding: 12px 16px;
+
+        background: #1e1f21; /* solid */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .brand {
+        font-weight: 700;
+        font-size: 18px;
+      }
+      .search-wrap {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 6px 8px;
+        border-radius: 10px;
+        max-width: 540px;
+        width: 100%;
+      }
+      .search input {
+        background: transparent;
+        border: 0;
+        outline: none;
+        color: #fff;
+        width: 100%;
+        font-size: 14px;
+      }
+      .btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 8px 12px;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+      }
+      /* top pagination row */
+
+      .top-pager-wrap {
+        width: 100%;
+        padding: 12px 16px;
+        margin-top: 64px; /* 🔥 TURUNKAN DARI HEADER */
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .top-pager {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .page-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        min-width: 44px;
+      }
+      .page-num {
+        width: 36px;
+        height: 36px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        cursor: pointer;
+        font-weight: 600;
+        background: transparent;
+      }
+      .page-num.active {
+        background: var(--bg);
+        box-shadow: 0 0 0 4px rgba(58, 163, 255, 0.12);
+        border-color: transparent;
+        color: var(--accent);
+      }
+      .found-line {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 6px;
+        text-align: center;
+      }
+
+      main {
+        padding: 14px 16px;
+        width: 100%;
+        margin: 0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(var(--thumb-w), 1fr));
+        gap: 14px;
+      }
+
+      /*
+    @media (max-width:900px){ .grid{grid-template-columns:repeat(4,1fr)} }
+    @media (max-width:600px){ .grid{grid-template-columns:repeat(3,1fr)} }
+    @media (max-width:420px){ .grid{grid-template-columns:repeat(2,1fr)} }
+        */
+      .card {
+        background: transparent;
+      }
+      .thumb {
+        position: relative;
+        width: var(--thumb-w);
+        height: var(--thumb-h);
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+        background: #111;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        background: #111;
+      }
+
+      /*.thumb img{width:100%;height:100%;object-fit:cover;display:block}*/
+      .title {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 6px 8px;
+        font-size: 12px;
+        background: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.8),
+          rgba(0, 0, 0, 0)
+        );
+      }
+      .count {
+        position: absolute;
+        right: 6px;
+        top: 6px;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 4px 6px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .flag {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none; /* biar klik tembus ke cover */
+      }
+
+      /* jump modal */
+      .jump-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 120;
+        background: rgba(0, 0, 0, 0.6);
+      }
+      .jump-modal.show {
+        display: flex;
+      }
+      .jump-box {
+        background: #0f0f10;
+        padding: 18px;
+        border-radius: 10px;
+        min-width: 320px;
+        max-width: 90%;
+      }
+      .jump-box label {
+        display: block;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .jump-box input {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: transparent;
+        color: #fff;
+        margin-bottom: 12px;
+      }
+      .jump-row {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(var(--thumb-w), 1fr));
+        gap: 14px;
+        width: 100%;
+      }
+
+      .brand {
+        font-weight: 700;
+        font-size: 18px;
+        color: inherit;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- === HEADER: copied to match index.html exactly === -->
+    <header>
+      <a href="index.html" class="brand">Manga Reader</a>
+      <div class="search-wrap">
+        <div class="search">
+          <div class="icon">🔍</div>
+          <input id="searchInputHeader" placeholder="Cari judul" />
+        </div>
+      </div>
+    </header>
+
+    <!-- top pager area (seperti gambar kedua) -->
+    <div class="top-pager-wrap" id="topPagerWrap" aria-hidden="false">
+      <div class="top-pager" id="topPager"></div>
+      <div class="found-line" id="foundLineTop">Ditemukan 0 judul</div>
+    </div>
+
+    <main>
+      <div class="grid-wrap">
+        <div id="listGrid" class="grid"></div>
+      </div>
+    </main>
+
+    <!-- jump modal -->
+    <div class="jump-modal" id="jumpModal">
+      <div
+        class="jump-box"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Jump to page"
+      >
+        <label for="jumpInput">Enter page number</label>
+        <input id="jumpInput" type="number" min="1" />
+        <div class="jump-row">
+          <button class="btn" id="jumpOk">Oke</button>
+          <button class="btn" id="jumpCancel">Batal</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // === CONFIG: ganti jika perlu ===
+      const SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdkX9TLxwvLdTEQYBxrJAi0-lWZ3YSKTGQ-1VJzMulby5d2mKbvWi_adl06DpjFHqhU3aOrqr7GIpl/pub?gid=0&single=true&output=csv";
+
+      // helper parse CSV (keamanan: simpel)
+      function parseCSV(text) {
+        const rows = [];
+        let cur = [];
+        let field = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (inQuotes) {
+            if (ch === '"') {
+              if (text[i + 1] === '"') {
+                field += '"';
+                i++;
+              } else {
+                inQuotes = false;
+              }
+            } else field += ch;
+          } else {
+            if (ch === '"') {
+              inQuotes = true;
+            } else if (ch === ",") {
+              cur.push(field);
+              field = "";
+            } else if (ch === "\r") continue;
+            else if (ch === "\n") {
+              cur.push(field);
+              field = "";
+              rows.push(cur);
+              cur = [];
+            } else field += ch;
+          }
+        }
+        if (field !== "" || cur.length > 0) {
+          cur.push(field);
+          rows.push(cur);
+        }
+        return rows;
+      }
+
+      function toDirectImage(url) {
+        if (!url) return "";
+        const m1 = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+        const m2 = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+        const m3 = url.match(/drive\.google\.com\/uc\?[^#]*id=([^&]+)/);
+        const m4 = url.match(/id=([^&]+)/);
+        const id = m1?.[1] || m2?.[1] || m3?.[1] || m4?.[1];
+        if (!id) return url;
+        return `https://drive.google.com/thumbnail?id=${id}&sz=w600`;
+      }
+
+      function flagSVG(code) {
+        if (!code) return "";
+        code = code.toUpperCase();
+
+        if (code === "ENG") {
+          return `
+            <svg viewBox="0 0 60 30" width="22" height="12">
+            <rect width="60" height="30" fill="#012169"/>
+            <path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/>
+            <path d="M0 0L60 30M60 0L0 30" stroke="#C8102E" stroke-width="4"/>
+            <rect x="24" width="12" height="30" fill="#fff"/>
+            <rect y="9" width="60" height="12" fill="#fff"/>
+            <rect x="26" width="8" height="30" fill="#C8102E"/>
+            <rect y="11" width="60" height="8" fill="#C8102E"/>
+            </svg>`;
+        }
+
+        if (code === "JPN" || code === "JAPAN") {
+          return `
+            <svg viewBox="0 0 60 30" width="22" height="12">
+            <rect width="60" height="30" fill="#fff"/>
+            <circle cx="30" cy="15" r="9" fill="#bc002d"/>
+            </svg>`;
+        }
+
+        if (code === "IDN" || code === "INA") {
+          return `
+            <svg viewBox="0 0 60 30" width="22" height="12">
+            <rect width="60" height="15" fill="#e70012"/>
+            <rect y="15" width="60" height="15" fill="#ffffff"/>
+            </svg>`;
+        }
+
+        return `<span style="font-size:10px">${code}</span>`;
+      }
+
+      // create card DOM
+      function createCard(item) {
+        const el = document.createElement("div");
+        el.className = "card";
+        const thumb = document.createElement("div");
+        thumb.className = "thumb";
+        const img = document.createElement("img");
+        img.src = item.images.length ? toDirectImage(item.images[0]) : "";
+        img.alt = item.nama || "";
+        thumb.appendChild(img);
+        const f = document.createElement("div");
+        f.className = "flag";
+        f.innerHTML = flagSVG(item.bahasa);
+        thumb.appendChild(f);
+        const c = document.createElement("div");
+        c.className = "count";
+        c.textContent = item.images.length;
+        thumb.appendChild(c);
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = item.nama || "";
+        thumb.appendChild(title);
+        el.appendChild(thumb);
+        thumb.addEventListener("click", () => {
+          // gunakan nomor item (mis. item.no bisa berformat "00004")
+          const id = parseInt(item.no, 10) || item.no;
+          window.location.href = "view-title.html?no=" + id;
+        });
+
+        return el;
+      }
+
+      // paging config
+      const perPage = 48;
+      let allItems = [];
+      let filteredItems = [];
+      let page = 1;
+      let totalPages = 1;
+
+      const params = new URLSearchParams(location.search);
+      const listParam = (params.get("list") || "updates").toLowerCase();
+      page = parseInt(params.get("page") || "1", 10) || 1;
+
+      const gridEl = document.getElementById("listGrid");
+      const topPagerEl = document.getElementById("topPager");
+      const foundLineTop = document.getElementById("foundLineTop");
+
+      async function load() {
+        try {
+          const res = await fetch(SHEET_CSV_URL);
+          if (!res.ok) throw new Error("Gagal mengambil data sheet.");
+          const txt = await res.text();
+          const rows = parseCSV(txt);
+          const data = [];
+          for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            if (row.length < 4) continue;
+            const kondisi = (row[4] || "").trim().toUpperCase();
+            if (kondisi !== "YES") continue;
+
+            const obj = {
+              no: (row[0] || "").trim(),
+              bahasa: (row[1] || "").trim(),
+              rating: (row[2] || "").trim().toUpperCase(),
+              nama: (row[3] || "").trim(),
+              images: [],
+            };
+
+            // 🔥 gambar dimulai tepat SETELAH kolom "Kondisi"
+            for (let c = 5; c < row.length; c++) {
+              const v = (row[c] || "").trim();
+              if (v) obj.images.push(v);
+            }
+
+            data.push(obj);
+          }
+          let arr = data.slice();
+          arr = arr.reverse();
+          if (listParam === "good") {
+            arr = arr.filter((it) =>
+              ["GOOD", "GOOOD"].includes((it.rating || "").toUpperCase()),
+            );
+          } else if (listParam === "normal") {
+            arr = arr.filter(
+              (it) => (it.rating || "").toUpperCase() === "NORMAL",
+            );
+          } else {
+            arr = arr.filter((it) =>
+              ["NORMAL", "GOOD", "GOOOD"].includes(
+                (it.rating || "").toUpperCase(),
+              ),
+            );
+          }
+          allItems = arr;
+          filteredItems = [...allItems];
+          totalPages = Math.max(1, Math.ceil(filteredItems.length / perPage));
+          if (page < 1) page = 1;
+          if (page > totalPages) page = totalPages;
+          renderPage();
+        } catch (err) {
+          gridEl.innerHTML = `<div style="padding:16px;color:#f66">Error: ${err.message}</div>`;
+        }
+      }
+
+      function renderPage() {
+        // update found
+        foundLineTop.textContent = `Ditemukan ${filteredItems.length.toLocaleString("id-ID")} judul`;
+        totalPages = Math.max(1, Math.ceil(filteredItems.length / perPage));
+        if (page > totalPages) page = totalPages;
+        const start = (page - 1) * perPage;
+        const pageItems = filteredItems.slice(start, start + perPage);
+        gridEl.innerHTML = "";
+        pageItems.forEach((it) => gridEl.appendChild(createCard(it)));
+        renderTopPager();
+        // update URL
+        const u = new URL(location.href);
+        u.searchParams.set("list", listParam);
+        u.searchParams.set("page", page);
+        history.replaceState({}, "", u.toString());
+      }
+
+      function renderTopPager() {
+        topPagerEl.innerHTML = "";
+
+        let display = [];
+        if (totalPages <= 20) {
+          for (let i = 1; i <= totalPages; i++) display.push(i);
+        } else {
+          display.push(1, 2, 3);
+          const left = Math.max(4, page - 2);
+          const right = Math.min(totalPages - 3, page + 2);
+
+          if (left > 4) display.push("L");
+          for (let i = left; i <= right; i++) display.push(i);
+          if (right < totalPages - 3) display.push("R");
+
+          display.push(totalPages - 2, totalPages - 1, totalPages);
+        }
+
+        for (const p of display) {
+          const item = document.createElement("div");
+          item.className = "page-item";
+
+          const btn = document.createElement("div");
+          btn.className = "page-num" + (p === page ? " active" : "");
+
+          if (p === "L" || p === "R") {
+            btn.textContent = "...";
+            btn.addEventListener("click", openJumpModal);
+          } else {
+            btn.textContent = p;
+            btn.addEventListener("click", () => {
+              page = p;
+              renderPage();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+          }
+
+          item.appendChild(btn);
+          topPagerEl.appendChild(item);
+        }
+      }
+
+      // jump modal
+      const jumpModal = document.getElementById("jumpModal");
+      const jumpInput = document.getElementById("jumpInput");
+      const jumpOk = document.getElementById("jumpOk");
+      const jumpCancel = document.getElementById("jumpCancel");
+
+      function openJumpModal() {
+        jumpInput.value = "";
+        jumpInput.placeholder = `1 - ${Math.max(1, totalPages)}`;
+        jumpModal.classList.add("show");
+        jumpInput.focus();
+        jumpInput.select();
+      }
+      function closeJumpModal() {
+        jumpModal.classList.remove("show");
+      }
+
+      jumpCancel.addEventListener("click", closeJumpModal);
+      jumpOk.addEventListener("click", () => {
+        const v = parseInt(jumpInput.value, 10);
+        if (!v || v < 1) return;
+        const t = Math.max(1, Math.min(totalPages, v));
+        page = t;
+        closeJumpModal();
+        renderPage();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      jumpInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          jumpOk.click();
+        }
+        if (e.key === "Escape") {
+          jumpCancel.click();
+        }
+      });
+
+      // header search (same as home)
+      const searchHeader = document.getElementById("searchInputHeader");
+      searchHeader.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const q = searchHeader.value.trim();
+          if (!q) return;
+          window.location.href =
+            "search.html?q=" + encodeURIComponent(q) + "&page=1";
+        }
+      });
+
+      // init load
+      load();
+    </script>
+  </body>
+</html>
